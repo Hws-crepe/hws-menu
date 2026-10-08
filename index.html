@@ -184,7 +184,9 @@ main{padding-top:6px}
   display:flex;flex-direction:column;text-align:start;width:100%;min-width:0;
   transition:transform .2s ease,box-shadow .2s ease}
 .item:hover{transform:translateY(-4px);box-shadow:0 14px 32px rgba(16,24,40,.12)}
-.item.out{opacity:.55}
+.out-msg{margin:0;font-size:.78rem;line-height:1.5;font-weight:700;color:var(--amber);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.item.out{opacity:.72}
 .item.out .thumb{filter:grayscale(1)}
 .thumb{position:relative;width:100%;aspect-ratio:4/3;background:var(--line);overflow:hidden;flex:0 0 auto;align-self:stretch}
 .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
@@ -216,7 +218,7 @@ main{padding-top:6px}
 .list{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
 .row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:none}
-.row.out{opacity:.5}
+.row.out{opacity:.72}
 .row .txt{flex:1;min-width:0}
 .row .txt h6{margin:0;font-size:.93rem;font-weight:800}
 .row .txt p{margin:0;font-size:.77rem;color:var(--ink-3)}
@@ -392,6 +394,11 @@ html[dir="ltr"] .branch-btn .bb-go svg{transform:scaleX(-1)}
 .sw.on::after{transform:translateX(-20px)}
 html[dir="ltr"] .sw.on::after{transform:translateX(20px)}
 .adm-note{background:rgba(240,173,78,.12);border:1px solid rgba(240,173,78,.4);border-radius:14px;padding:12px 14px;font-size:.79rem;margin-bottom:14px;color:var(--ink-2)}
+.adm-msg{padding:0 0 11px}
+.adm-msg input{width:100%;padding:8px 11px;border:1.5px solid rgba(240,173,78,.55);border-radius:10px;
+  background:rgba(240,173,78,.08);font-size:.8rem;font-weight:600;font-family:inherit;color:var(--ink)}
+.adm-msg input::placeholder{color:var(--ink-3);font-weight:400}
+.adm-item+.adm-msg{border-bottom:1px solid var(--line);margin-top:-1px;padding-top:2px}
 .adm-cat{font-size:.76rem;font-weight:900;color:var(--ink-3);margin:14px 0 4px;letter-spacing:.4px}
 textarea.code{width:100%;min-height:110px;padding:12px;border:1.5px solid var(--line);border-radius:14px;
   background:#12151a;color:#c6f6d5;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;
@@ -842,6 +849,8 @@ const T = {
   admNote:   ["تعديلاتك تُحفظ في هذا الجهاز فوراً. لتصل لكل الزبائن، افتح «حفظ ونشر».",
               "Changes save on this device instantly. Use “Save & publish” to apply for everyone."],
   available: ["متوفر","Available"],
+  soldOutMsg:["هذا الصنف غير متوفر حالياً","This item is currently unavailable"],
+  outMsgPH:  ["نص يظهر للزبون (اختياري) — مثال: سيتوفر قريباً","Message shown to customers (optional)"],
   pauseBr:   ["إيقاف الطلبات مؤقتاً","Pause orders"],
   pauseBrS:  ["يظهر للزبون أن الفرع مزدحم ولا يمكنه الطلب","Customers see the branch is busy and can't order"],
   resetAdm:  ["إلغاء كل التعديلات","Reset all changes"],
@@ -929,7 +938,7 @@ const CREPE = price_hotdog => ({ id:"crepe", title:["الكريب","Crêpes"], e
     options:["spice","extras"] },
   { id:"cr3", name:["كريب هوت دوق","Hot Dog Crêpe"],
     desc:["قطع هوت دوق متبّلة مع الخضار الطازج والأجبان.","Seasoned hot dog with fresh veg and cheese."],
-    short:["نكهة فريدة لا تقاوم","Irresistible"], price:20000, img:"CR3", tags:["savory"],
+    short:["نكهة فريدة لا تقاوم","Irresistible"], price:price_hotdog, img:"CR3", tags:["savory"],
     options:["spice","extras"] },
   { id:"cr4", name:["كريب حلو شديد","Sweet Crêpe"],
     desc:["كريب غني بالنوتيلا الفاخرة والحشوات الحلوة.","Loaded with premium Nutella and sweet fillings."],
@@ -1006,10 +1015,10 @@ const ADDONS = { id:"addons", title:["الإضافات","Extras"], emoji:"➕", 
 const clone = o => JSON.parse(JSON.stringify(o));
 
 /* منيو فرع الأربعين — بلا سندوتشات، هوت دوق 17,000 */
-const MENU_ARBAEEN = [ CREPE(17000), clone(PIES), clone(DRINKS), clone(ADDONS) ];
+const MENU_ARBAEEN = [ CREPE(20000), clone(PIES), clone(DRINKS), clone(ADDONS) ];
 
 /* منيو فرع الوادي — مع السندوتشات، هوت دوق 16,000 */
-const MENU_WADI = [ CREPE(16000), clone(SANDWICHES), clone(PIES), clone(DRINKS), clone(ADDONS) ];
+const MENU_WADI = [ CREPE(20000), clone(SANDWICHES), clone(PIES), clone(DRINKS), clone(ADDONS) ];
 
 const ZONES_DEFAULT = [
   { id:"z1", name:["الأربعين","Al-Arbaeen"],   fee:2000 },
@@ -1061,7 +1070,9 @@ let L = 0;                       // 0=عربي 1=إنجليزي
 let branch = null, cart = [], orderMode = "delivery";
 let pCur = null, pQty = 1, pSel = {};
 let filter = "all", io = null, lastFocus = null, deferredPrompt = null;
-let adm = store.get(K.adm) || { prices:{}, out:{}, paused:{} };
+let adm = store.get(K.adm) || { prices:{}, out:{}, paused:{}, msg:{} };
+adm.prices = adm.prices || {}; adm.out = adm.out || {};
+adm.paused = adm.paused || {}; adm.msg = adm.msg || {};
 
 /* ---------- أدوات ---------- */
 const t   = k => (T[k] ? T[k][L] : k);
@@ -1207,6 +1218,8 @@ function effPrice(it){
   return (p === undefined || p === null || p === "") ? it.price : Number(p);
 }
 function isOut(it){ return !!adm.out[it.id]; }
+/* نص قصير يكتبه المدير يظهر مكان سبب عدم التوفر */
+function outMsg(it){ return String(adm.msg[it.id] || "").trim(); }
 function saveAdm(){ store.set(K.adm, adm); }
 
 /* ---------- الفروع ---------- */
@@ -1238,6 +1251,8 @@ function setBranch(id){
   branch = BRANCHES.find(x => x.id === id) || BRANCHES[0];
   store.set(K.branch, branch.id);
   cart = store.get(K.cart + branch.id) || [];
+  /* صنف أوقفه المدير لا يبقى في سلة الزبون */
+  cart = cart.filter(l => { const f = findAny(l.id); return f && !isOut(f.item); });
   closeOverlay("branchOverlay");
   applyBranch();
 }
@@ -1329,7 +1344,8 @@ function cardHTML(it, cat){
     </span>
     <span class="item-body">
       <span class="item-name">${esc(tx(it.name))}</span>
-      <span class="item-desc">${esc(tx(it.short) || tx(it.desc))}</span>
+      ${out ? `<span class="out-msg">${esc(outMsg(it) || t("soldOutMsg"))}</span>`
+            : `<span class="item-desc">${esc(tx(it.short) || tx(it.desc))}</span>`}
       <span class="item-foot">
         <span class="price">${it.was?`<s>${money(it.was)}</s>`:""}${price(p)}</span>
         ${out ? "" : `<span class="add" data-add="${esc(it.id)}" data-cat="${esc(cat.id)}" role="button"
@@ -1345,7 +1361,9 @@ function rowHTML(it, cat){
   const q = qtyOf(it.id), out = isOut(it);
   return `
   <div class="row${out?" out":""}">
-    <div class="txt"><h6>${esc(tx(it.name))}</h6><p>${esc(tx(it.short)||tx(it.desc))}</p></div>
+    <div class="txt"><h6>${esc(tx(it.name))}</h6>
+      ${out ? `<p class="out-msg">${esc(outMsg(it) || t("soldOutMsg"))}</p>`
+            : `<p>${esc(tx(it.short)||tx(it.desc))}</p>`}</div>
     <span class="price">${out?esc(t("soldOut")):price(effPrice(it))}</span>
     ${out ? "" : `<button class="add" type="button" data-add="${esc(it.id)}" data-cat="${esc(cat.id)}" aria-label="${esc(t("addCart"))}">
       ${q?`<span class="qty-dot">${q}</span>`:""}
@@ -1450,7 +1468,9 @@ function findAny(itemId){
   return null;
 }
 function openProduct(catId, itemId){
-  const it = findItem(catId, itemId); if (!it || isOut(it)) return;
+  const it = findItem(catId, itemId); if (!it) return;
+  /* صنف موقوف: نُظهر سبب عدم التوفر بدل فتح نافذة الطلب */
+  if (isOut(it)){ toast(outMsg(it) || t("soldOutMsg"), 4000); return; }
   pCur = { cat:catId, item:it }; pQty = 1; pSel = {};
   optsOf(it).forEach(g => { if (g.required && g.type==="single") pSel[g.id] = [g.choices[0].id]; });
   const src = imgSrc(it.img);
@@ -1829,7 +1849,16 @@ function renderAdmin(){
                value="${effPrice(i)}" class="${adm.prices[i.id]!==undefined?"changed":""}">
         <span class="sw${isOut(i)?"":" on"}" role="button" tabindex="0"
               data-out="${esc(i.id)}" aria-label="${esc(t("available"))}"></span>
+      </div>
+      <div class="adm-msg${isOut(i)?"":" hidden"}" data-msgrow="${esc(i.id)}">
+        <input type="text" maxlength="90" data-msg="${esc(i.id)}"
+               value="${esc(adm.msg[i.id]||"")}" placeholder="${esc(t("outMsgPH"))}">
       </div>`).join("")).join("");
+  $$('#admItems [data-msg]').forEach(inp => inp.addEventListener("change", () => {
+    const id = inp.dataset.msg, v = inp.value.trim();
+    if (v) adm.msg[id] = v; else delete adm.msg[id];
+    saveAdm(); renderMenu($("#q").value.trim()); toast(t("savedAdm"));
+  }));
   $$('#admItems [data-price]').forEach(inp => inp.addEventListener("change", () => {
     const v = inp.value.trim();
     const it = findAny(inp.dataset.price);
@@ -1842,6 +1871,8 @@ function renderAdmin(){
     const id = el.dataset.out;
     if (adm.out[id]) delete adm.out[id]; else adm.out[id] = 1;
     el.classList.toggle("on", !adm.out[id]);
+    const row = $(`#admItems [data-msgrow="${CSS.escape(id)}"]`);
+    if (row) row.classList.toggle("hidden", !adm.out[id]);
     saveAdm(); renderMenu($("#q").value.trim()); toast(t("savedAdm"));
   };
   $$('#admItems [data-out]').forEach(el => {
@@ -1867,17 +1898,18 @@ function renderAdmin(){
   $("#admPause").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();tp();} });
   $("#admReset").addEventListener("click", () => {
     if (!confirm(t("resetAsk"))) return;
-    adm = { prices:{}, out:{}, paused:{} }; saveAdm();
+    adm = { prices:{}, out:{}, paused:{}, msg:{} }; saveAdm();
     renderAdmin(); renderMenu($("#q").value.trim()); renderOpenState(); renderCartBar();
   });
 }
 
 function admPayload(){
-  return { prices:adm.prices, out:adm.out, paused:adm.paused };
+  return { prices:adm.prices, out:adm.out, paused:adm.paused, msg:adm.msg };
 }
 function renderAdmSave(){
   const p = admPayload();
-  const empty = !Object.keys(p.prices).length && !Object.keys(p.out).length && !Object.keys(p.paused).length;
+  const empty = !Object.keys(p.prices).length && !Object.keys(p.out).length
+    && !Object.keys(p.paused).length && !Object.keys(p.msg||{}).length;
   const code = "const OVERRIDES = " + JSON.stringify(p) + ";";
   $("#admSave").innerHTML = `
     <div class="adm-note"><strong>${esc(t("publishT"))}</strong><br>${esc(t("publishS"))}</div>
@@ -2008,14 +2040,17 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 /* ---------- الإقلاع ---------- */
 function boot(){
   L = store.get(K.lang) === 1 ? 1 : 0;
-  if (OVERRIDES && (OVERRIDES.prices || OVERRIDES.out || OVERRIDES.paused)){
+  if (OVERRIDES && (OVERRIDES.prices || OVERRIDES.out || OVERRIDES.paused || OVERRIDES.msg)){
     const local = store.get(K.adm);
-    if (!local) adm = { prices:OVERRIDES.prices||{}, out:OVERRIDES.out||{}, paused:OVERRIDES.paused||{} };
+    if (!local) adm = { prices:OVERRIDES.prices||{}, out:OVERRIDES.out||{},
+                        paused:OVERRIDES.paused||{}, msg:OVERRIDES.msg||{} };
   }
   applyTheme(); applyLang();
   const saved = store.get(K.branch);
   branch = BRANCHES.find(b=>b.id===saved) || BRANCHES[0];
   cart = store.get(K.cart + branch.id) || [];
+  /* صنف أوقفه المدير لا يبقى في سلة الزبون */
+  cart = cart.filter(l => { const f = findAny(l.id); return f && !isOut(f.item); });
   applyBranch();
   openBranchPicker(true);
   setInterval(renderOpenState, 60000);
