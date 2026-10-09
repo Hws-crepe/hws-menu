@@ -887,7 +887,8 @@ const T = {
   offer:     ["عرض","Offer"],
   soon:      ["هذا العنصر سيتوفر قريباً","This item will be available soon"],
   soonShort: ["سيتوفر قريباً","Coming soon"],
-  soonGone:  ["⚠️ أزلنا من سلتك لأنه لم يعد متوفراً:","⚠️ Removed from your cart (no longer available):"]
+  soonGone:  ["⚠️ أزلنا من سلتك لأنه لم يعد متوفراً:","⚠️ Removed from your cart (no longer available):"],
+  priceUpd:  ["تم تحديث سعر:","Price updated:"]
 };
 
 /* ============================================================================
@@ -1226,12 +1227,15 @@ function renderOpenState(){
 
 /* ---------- تعديلات الإدارة ---------- */
 function effPrice(it){
+  const r = remotePrice[it.id];               // سعر حدّده صاحب المطعم من صفحة الإدارة (Firestore)
+  if (typeof r === "number" && r >= 0) return r;
   const p = adm.prices[it.id];
   return (p === undefined || p === null || p === "") ? it.price : Number(p);
 }
 /* remoteOff: أصناف جعلها صاحب المطعم «غير متوفرة» من صفحة الإدارة (Firestore).
    تبقى فارغة إذا تعذّر الاتصال بـ Firebase ⇒ كل الأصناف متوفرة. */
 let remoteOff = new Set();
+let remotePrice = {};   // id → سعر من Firestore (إن وُجد يتقدّم على سعر الكود)
 function isOut(it){ return !!adm.out[it.id] || remoteOff.has(it.id); }
 function isSoon(it){ return remoteOff.has(it.id) && !adm.out[it.id]; }
 /* نص قصير يكتبه المدير يظهر مكان سبب عدم التوفر */
@@ -1833,9 +1837,14 @@ function toast(m, ms, warn){
 
 /* ---------- توفر الأصناف لحظياً (يستدعيها سكربت Firebase في آخر الملف) ---------- */
 const shown = id => document.getElementById(id).classList.contains("show");
-window.__setAvailability = function(offIds){
+window.__setAvailability = function(offIds, prices){
+  const before = branch ? new Map(cart.map(l => { const it = lineItem(l); return [l.id, it ? effPrice(it) : 0]; })) : new Map();
   remoteOff = new Set(offIds || []);
+  remotePrice = prices || {};
   if (!branch) return;
+  // أصناف في السلة تغيّر سعرها ← تنبيه (الإجمالي يتحدّث تلقائياً)
+  const repriced = [...new Set(cart.filter(l => { const it = lineItem(l);
+    return it && !isOut(it) && before.get(l.id) !== effPrice(it); }).map(l => tx(lineItem(l).name)))];
   // صنف أصبح غير متوفر وهو في السلة ← يُزال مع تنبيه واضح
   const gone = [];
   cart = cart.filter(l => {
@@ -1848,7 +1857,9 @@ window.__setAvailability = function(offIds){
   renderMenu($("#q").value.trim()); renderCartBar(); renderReorder(); buildLd();
   if (shown("cartOverlay")){ renderCartBody(); if (!cart.length) closeOverlay("cartOverlay"); }
   if (shown("checkoutOverlay")){ if (!cart.length) closeOverlay("checkoutOverlay"); else renderTotals(); }
+  if (pCur && shown("prodOverlay")) updateProdFoot();
   if (gone.length) toast(`${t("soonGone")} ${[...new Set(gone)].join("، ")}`, 7000, true);
+  else if (repriced.length) toast(`${t("priceUpd")} ${repriced.join("، ")}`, 5000);
 };
 
 /* ---------- لوحة الإدارة ---------- */
@@ -2168,10 +2179,10 @@ if (window.__hydrateImages) window.__hydrateImages();
 </script>
 <script type="module">
 /* ============================================================================
-   ٧ — توفر الأصناف لحظياً من Firebase (Firestore: مجموعة items)
+   ٧ — توفر الأصناف وأسعارها لحظياً من Firebase (Firestore: مجموعة items)
    الإعدادات في firebase-config.js. أي فشل هنا لا يعطّل المنيو: كل الأصناف تُعرض متوفرة.
    ============================================================================ */
-const show = ids => window.__setAvailability && window.__setAvailability(ids);
+const show = (ids, prices) => window.__setAvailability && window.__setAvailability(ids, prices || {});
 try {
   const { firebaseConfig, FIREBASE_SDK, firebaseReady } = await import("./firebase-config.js");
   if (firebaseReady()){
@@ -2185,9 +2196,15 @@ try {
       db = fs.initializeFirestore(app, { localCache:
         fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) });
     } catch (e) { db = fs.getFirestore(app); }
-    // لا يوجد مستند للصنف ⇒ متوفر. فقط available === false يجعله غير متوفر
+    // لا يوجد مستند للصنف ⇒ متوفر وبسعر الكود. available === false ⇒ غير متوفر، price ⇒ سعر جديد
     fs.onSnapshot(fs.collection(db, "items"),
-      snap => show(snap.docs.filter(d => d.data().available === false).map(d => d.id)),
+      snap => {
+        const off = [], prices = {};
+        snap.docs.forEach(d => { const x = d.data();
+          if (x.available === false) off.push(d.id);
+          if (typeof x.price === "number") prices[d.id] = x.price; });
+        show(off, prices);
+      },
       err  => { console.warn("[توفر الأصناف]", err); show([]); });
   }
 } catch (e) { console.warn("[توفر الأصناف] تعذّر تحميل Firebase", e); show([]); }
