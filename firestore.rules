@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// قواعد أمان Firestore — HWS CREPE (توفر الأصناف)
+// الصق هذا الملف كاملاً في: Firebase Console ← Firestore Database ← Rules ← Publish
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ⚠️ غيّر هذا البريد إلى بريد حساب الأدمن الذي أنشأته في Authentication
+    function adminEmail() {
+      return "mohamedhapip86@gmail.com";
+    }
+
+    function isAdmin() {
+      return request.auth != null
+          && request.auth.token.email == adminEmail();
+    }
+
+    // المستند يحوي فقط: id و available و updatedAt (وقت الخادم)
+    function validItem(itemId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['id', 'available', 'updatedAt'])
+          && d.keys().hasAll(['id', 'available', 'updatedAt'])
+          && d.id == itemId
+          && d.available is bool
+          && d.updatedAt == request.time;
+    }
+
+    // حالة توفر الأصناف: القراءة للجميع، الكتابة للأدمن فقط
+    match /items/{itemId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validItem(itemId);
+      allow delete: if isAdmin();
+    }
+
+    // أي مجموعة أخرى: ممنوعة تماماً
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
