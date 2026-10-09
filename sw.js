@@ -1,7 +1,7 @@
 /* HWS CREPE — Service Worker
    يخزّن المنيو محلياً فتفتح الزيارات التالية فوراً حتى دون إنترنت.
    عند نشر نسخة جديدة، غيّر رقم CACHE ليحدّث جميع الأجهزة. */
-const CACHE = "hws-v2";
+const CACHE = "hws-v3";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -21,9 +21,10 @@ self.addEventListener("fetch", e => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;   // الخطوط وواتساب تمر للشبكة مباشرة
+  if (req.cache === "no-store") return;          // طلب يريد أحدث نسخة (صفحة الإدارة تقرأ الأصناف)
 
-  // المستند: الشبكة أولاً ليصل أي تحديث، ثم الذاكرة عند الانقطاع
-  if (req.mode === "navigate" || req.destination === "document") {
+  // المستند وإعدادات Firebase: الشبكة أولاً ليصل أي تحديث، ثم الذاكرة عند الانقطاع
+  if (req.mode === "navigate" || req.destination === "document" || url.pathname.endsWith("/firebase-config.js")) {
     e.respondWith(
       fetch(req)
         .then(res => { const cp = res.clone(); caches.open(CACHE).then(c => c.put(req, cp)); return res; })

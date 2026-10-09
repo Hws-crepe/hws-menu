@@ -254,10 +254,15 @@ function toast(msg, kind){
 /* ---------- 1) قراءة الأصناف من index.html (الأسماء والأسعار والصور تبقى هناك) ---------- */
 let ITEMS = [], CATS = [];
 async function loadMenu(){
-  const res = await fetch("./index.html", { cache: "no-cache" });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  const doc = new DOMParser().parseFromString(await res.text(), "text/html");
-  const code = doc.getElementById("menuData");
+  // no-store: لا نقبل نسخة قديمة من ذاكرة sw.js. وإن وصلت نسخة قديمة رغم ذلك نعيد الطلب برابط فريد
+  let doc, code;
+  for (const url of ["./index.html", "./index.html?fresh=" + Date.now()]) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    doc = new DOMParser().parseFromString(await res.text(), "text/html");
+    code = doc.getElementById("menuData");
+    if (code) break;
+  }
   if (!code) throw new Error("menuData not found");
   const data = new Function(code.textContent + "\n;return { IMG, BRANCHES, CONFIG };")();
   const imgs = doc.getElementById("imgData");
