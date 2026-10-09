@@ -1236,6 +1236,7 @@ function effPrice(it){
    تبقى فارغة إذا تعذّر الاتصال بـ Firebase ⇒ كل الأصناف متوفرة. */
 let remoteOff = new Set();
 let remotePrice = {};   // id → سعر من Firestore (إن وُجد يتقدّم على سعر الكود)
+let remoteFor = null;   // الفرع الذي تخصّه remoteOff/remotePrice — لكل فرع توفره وأسعاره
 function isOut(it){ return !!adm.out[it.id] || remoteOff.has(it.id); }
 function isSoon(it){ return remoteOff.has(it.id) && !adm.out[it.id]; }
 /* نص قصير يكتبه المدير يظهر مكان سبب عدم التوفر */
@@ -1270,6 +1271,9 @@ function openBranchPicker(startup){
 function setBranch(id){
   branch = BRANCHES.find(x => x.id === id) || BRANCHES[0];
   store.set(K.branch, branch.id);
+  // حالة الفرع السابق لا تنطبق على هذا الفرع؛ حالته تصل من Firebase خلال لحظات
+  if (remoteFor !== branch.id){ remoteOff = new Set(); remotePrice = {}; remoteFor = null; }
+  document.dispatchEvent(new CustomEvent("hws:branch", { detail: branch.id }));
   cart = store.get(K.cart + branch.id) || [];
   /* صنف أوقفه المدير لا يبقى في سلة الزبون */
   cart = cart.filter(l => { const f = findAny(l.id); return f && !isOut(f.item); });
@@ -1837,10 +1841,14 @@ function toast(m, ms, warn){
 
 /* ---------- توفر الأصناف لحظياً (يستدعيها سكربت Firebase في آخر الملف) ---------- */
 const shown = id => document.getElementById(id).classList.contains("show");
-window.__setAvailability = function(offIds, prices){
+window.__hwsBranch = () => branch && branch.id;
+window.__setAvailability = function(offIds, prices, branchId){
+  if (branchId && branch && branchId !== branch.id) return;   // وصلت متأخرة لفرع لم يعد معروضاً
+  const first = remoteFor !== branchId;                        // أول حالة لهذا الفرع: لا نعلن «تحديث سعر»
   const before = branch ? new Map(cart.map(l => { const it = lineItem(l); return [l.id, it ? effPrice(it) : 0]; })) : new Map();
   remoteOff = new Set(offIds || []);
   remotePrice = prices || {};
+  remoteFor = branchId || null;
   if (!branch) return;
   // أصناف في السلة تغيّر سعرها ← تنبيه (الإجمالي يتحدّث تلقائياً)
   const repriced = [...new Set(cart.filter(l => { const it = lineItem(l);
@@ -1859,7 +1867,7 @@ window.__setAvailability = function(offIds, prices){
   if (shown("checkoutOverlay")){ if (!cart.length) closeOverlay("checkoutOverlay"); else renderTotals(); }
   if (pCur && shown("prodOverlay")) updateProdFoot();
   if (gone.length) toast(`${t("soonGone")} ${[...new Set(gone)].join("، ")}`, 7000, true);
-  else if (repriced.length) toast(`${t("priceUpd")} ${repriced.join("، ")}`, 5000);
+  else if (repriced.length && !first) toast(`${t("priceUpd")} ${repriced.join("، ")}`, 5000);
 };
 
 /* ---------- لوحة الإدارة ---------- */
@@ -2179,10 +2187,11 @@ if (window.__hydrateImages) window.__hydrateImages();
 </script>
 <script type="module">
 /* ============================================================================
-   ٧ — توفر الأصناف وأسعارها لحظياً من Firebase (Firestore: مجموعة items)
+   ٧ — توفر الأصناف وأسعارها لحظياً من Firebase — لكل فرع حالته
+   Firestore: branches/{الفرع}/items/{الصنف}  ←  { id, available?, price?, updatedAt }
    الإعدادات في firebase-config.js. أي فشل هنا لا يعطّل المنيو: كل الأصناف تُعرض متوفرة.
    ============================================================================ */
-const show = (ids, prices) => window.__setAvailability && window.__setAvailability(ids, prices || {});
+const show = (ids, prices, b) => window.__setAvailability && window.__setAvailability(ids, prices || {}, b);
 try {
   const { firebaseConfig, FIREBASE_SDK, firebaseReady } = await import("./firebase-config.js");
   if (firebaseReady()){
@@ -2197,15 +2206,23 @@ try {
         fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) });
     } catch (e) { db = fs.getFirestore(app); }
     // لا يوجد مستند للصنف ⇒ متوفر وبسعر الكود. available === false ⇒ غير متوفر، price ⇒ سعر جديد
-    fs.onSnapshot(fs.collection(db, "items"),
-      snap => {
-        const off = [], prices = {};
-        snap.docs.forEach(d => { const x = d.data();
-          if (x.available === false) off.push(d.id);
-          if (typeof x.price === "number") prices[d.id] = x.price; });
-        show(off, prices);
-      },
-      err  => { console.warn("[توفر الأصناف]", err); show([]); });
+    let unsub = null, watching = null;
+    const watch = b => {
+      if (!b || b === watching) return;
+      if (unsub) unsub();
+      watching = b;
+      unsub = fs.onSnapshot(fs.collection(db, "branches", b, "items"),
+        snap => {
+          const off = [], prices = {};
+          snap.docs.forEach(d => { const x = d.data();
+            if (x.available === false) off.push(d.id);
+            if (typeof x.price === "number") prices[d.id] = x.price; });
+          show(off, prices, b);
+        },
+        err => { console.warn("[توفر الأصناف]", err); show([], {}, b); });
+    };
+    watch(window.__hwsBranch && window.__hwsBranch());
+    document.addEventListener("hws:branch", e => watch(e.detail));
   }
 } catch (e) { console.warn("[توفر الأصناف] تعذّر تحميل Firebase", e); show([]); }
 </script>

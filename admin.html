@@ -149,6 +149,16 @@ input{font-family:inherit;font-size:1rem;color:inherit}
 
 .empty{text-align:center;padding:40px 20px;color:var(--ink-3);font-weight:700}
 
+/* تبويبات الفروع — ثابتة أعلى الشاشة حتى لا يُعدَّل الفرع الخطأ */
+.brtabs{position:sticky;top:0;z-index:50;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;
+  padding:10px 0;margin-top:6px;background:var(--bg)}
+.brt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:64px;padding:8px;
+  border-radius:16px;background:var(--surface);box-shadow:var(--shadow-sm);border:2px solid var(--line);color:var(--ink-2)}
+.brt strong{font-size:1rem;font-weight:900;line-height:1.3}
+.brt small{font-size:.72rem;font-weight:700;color:var(--ink-3);line-height:1.3}
+.brt.on{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 6px 16px rgba(217,83,79,.3)}
+.brt.on small{color:rgba(255,255,255,.88)}
+
 footer{text-align:center;padding:26px 16px 18px;color:var(--ink-3);font-size:.78rem}
 footer a{color:var(--ink-2);font-weight:700;text-underline-offset:3px}
 
@@ -215,6 +225,7 @@ html[data-theme="dark"] .toast{background:#2c333b;color:#fff}
       <span class="net" id="net">جارٍ الاتصال…</span>
       <span class="who" id="who"></span>
     </div>
+    <div class="brtabs" id="brTabs" role="tablist" aria-label="الفروع"></div>
     <p class="sum" id="sum"></p>
     <div class="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -233,8 +244,29 @@ html[data-theme="dark"] .toast{background:#2c333b;color:#fff}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script>
+/* إن لم يبدأ سكربت الصفحة نشرح السبب بدل «جارٍ التحميل» بلا نهاية:
+   - فتح الملف من الجهاز (file://): المتصفح يمنع تحميل firebase-config.js ومكتبة Firebase
+   - أو تعذّر تحميل firebase-config.js من الموقع */
+(function(){
+  var local = location.protocol === "file:";
+  function explain(){
+    if (window.__admStarted) return;
+    var site = "https://hws-crepe.github.io/hws-menu/admin.html";
+    document.getElementById("vLoading").classList.add("hidden");
+    document.getElementById("errTitle").textContent = local ? "افتح الصفحة من رابط الموقع" : "تعذّر تشغيل الصفحة";
+    document.getElementById("errBody").innerHTML = local
+      ? 'هذه الصفحة لا تعمل عند فتحها كملف من الجهاز (المتصفح يمنع ذلك لأسباب أمنية).<br>افتحها من رابط الموقع:<br><a href="' + site + '" style="direction:ltr;display:inline-block;font-weight:800">' + site + '</a>'
+      : 'تأكد أن الملف <code>firebase-config.js</code> مرفوع بجانب <code>admin.html</code>، وتحقق من اتصال الإنترنت ثم أعد المحاولة.';
+    document.getElementById("vError").classList.remove("hidden");
+  }
+  if (local) addEventListener("DOMContentLoaded", function(){ setTimeout(explain, 300); });
+  else setTimeout(explain, 20000);
+})();
+</script>
 <script type="module">
 import { firebaseConfig, FIREBASE_SDK, firebaseReady } from "./firebase-config.js";
+window.__admStarted = true;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
@@ -252,8 +284,18 @@ try {
 } catch (e) {}
 
 const views = ["vLoading", "vError", "vLogin", "vPanel"];
-const view = id => views.forEach(v => $("#" + v).classList.toggle("hidden", v !== id));
+let watchdog;
+const view = id => { if (id !== "vLoading") clearTimeout(watchdog);
+  views.forEach(v => $("#" + v).classList.toggle("hidden", v !== id)); };
 function fail(title, html){ $("#errTitle").textContent = title; $("#errBody").innerHTML = html; view("vError"); }
+/* شاشة التحميل تعرض المرحلة الحالية، وإن طالت أكثر من 25 ثانية تظهر رسالة واضحة وزر إعادة المحاولة */
+function loading(msg){
+  view("vLoading"); $("#loadingMsg").textContent = msg + "…";
+  clearTimeout(watchdog);
+  watchdog = setTimeout(() => fail("التحميل يستغرق وقتاً طويلاً",
+    `توقّف عند: <b>${msg}</b>.<br>تحقق من اتصال الإنترنت ثم اضغط «إعادة المحاولة». إن تكرّر ذلك، أغلق كل الصفحات المفتوحة من الموقع ثم افتح هذه الصفحة وحدها.`), 25000);
+}
+loading("جارٍ تحميل Firebase");
 
 let tT;
 function toast(msg, kind){
@@ -263,7 +305,7 @@ function toast(msg, kind){
 }
 
 /* ---------- 1) قراءة الأصناف من index.html (الأسماء والأسعار والصور تبقى هناك) ---------- */
-let ITEMS = [], CATS = [], CUR = "";
+let BR = [], CUR = "";   // BR: [{ id, name, cats:[…], items:[{ id, name, cat, img, base }] }]
 async function loadMenu(){
   // no-store: لا نقبل نسخة قديمة من ذاكرة sw.js. وإن وصلت نسخة قديمة رغم ذلك نعيد الطلب برابط فريد
   let doc, code;
@@ -279,22 +321,11 @@ async function loadMenu(){
   const imgs = doc.getElementById("imgData");
   if (imgs) try { new Function("IMG", imgs.textContent)(data.IMG); } catch (e) {}
 
-  const items = new Map(), cats = new Map(), nBr = data.BRANCHES.length;
-  for (const b of data.BRANCHES) for (const c of b.menu) {
-    if (!cats.has(c.id)) cats.set(c.id, { id: c.id, title: c.title[0], emoji: c.emoji || "" });
-    for (const it of c.items) {
-      let e = items.get(it.id);
-      if (!e) items.set(it.id, e = { id: it.id, name: it.name[0], cat: c.id, emoji: c.emoji || "",
-        img: data.IMG[it.img] || "", prices: new Set(), branches: [] });
-      e.prices.add(it.price); e.branches.push(b.name[0]);
-    }
-  }
   CUR = data.CONFIG.currency[0];
-  ITEMS = [...items.values()].map(e => ({ ...e,
-    base: [...e.prices][0],                      // السعر الأصلي في index.html
-    baseTxt: [...e.prices].map(money).join(" / "),
-    brTxt: e.branches.length < nBr ? e.branches.join("، ") + " فقط" : "" }));
-  CATS = [...cats.values()];
+  BR = data.BRANCHES.map(b => ({ id: b.id, name: b.name[0],
+    cats: b.menu.map(c => ({ id: c.id, title: c.title[0], emoji: c.emoji || "" })),
+    items: b.menu.flatMap(c => c.items.map(it => ({ id: it.id, name: it.name[0], cat: c.id,
+      catTitle: c.title[0], emoji: c.emoji || "", img: data.IMG[it.img] || "", base: it.price }))) }));
 }
 
 /* ---------- 2) Firebase ---------- */
@@ -324,6 +355,7 @@ try {
   throw e;
 }
 const { auth, authM, db, fs } = fb;
+loading("جارٍ التحقق من تسجيل الدخول");
 
 /* ---------- 3) تسجيل الدخول ---------- */
 const AUTH_ERR = {
@@ -361,33 +393,44 @@ $("#loginForm").addEventListener("submit", async e => {
 });
 $("#signOut").addEventListener("click", () => authM.signOut(auth));
 
-/* ---------- 4) لوحة الأصناف ---------- */
-const avail = new Map();      // id → false إن كان غير متوفر (لا مستند ⇒ متوفر)
-const rprice = new Map();     // id → سعر جديد من Firestore (لا يوجد ⇒ سعر الكود)
+/* ---------- 4) لوحة الأصناف — لكل فرع توفره وأسعاره (Firestore: branches/{فرع}/items/{صنف}) ---------- */
+const state = new Map();      // فرع → { avail: id→false, price: id→سعر }
 const seq = new Map();        // لتجاهل نتائج حفظ قديمة عند الضغط المتكرر
-let unsub = null, cat = "all", built = false;
-
-const isOn = id => avail.get(id) !== false;
-const itemOf = id => ITEMS.find(i => i.id === id);
-const priceOf = id => rprice.has(id) ? rprice.get(id) : itemOf(id).base;
+const cacheOf = new Map();    // فرع → هل آخر لقطة من الذاكرة المحلية
+let unsubs = [], cat = "all", cur = null;
+const S = b => { if (!state.has(b)) state.set(b, { avail: new Map(), price: new Map() }); return state.get(b); };
+const isOn = (id, b = cur) => S(b.id).avail.get(id) !== false;
+const itemOf = (id, b = cur) => b.items.find(i => i.id === id);
+const priceOf = (id, b = cur) => { const p = S(b.id).price; return p.has(id) ? p.get(id) : itemOf(id, b).base; };
+const ref = (b, id) => fs.doc(db, "branches", b, "items", id);
 /* أرقام عربية/فارسية وفواصل ⇒ رقم صحيح، أو NaN */
 function parsePrice(v){
   const d = String(v).replace(/[٠-٩]/g, c => "٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/[۰-۹]/g, c => "۰۱۲۳۴۵۶۷۸۹".indexOf(c))
     .replace(/[,\s٬،.]/g, "");
   return /^\d+$/.test(d) ? Number(d) : NaN;
 }
+function counts(b){
+  return { off: b.items.filter(i => !isOn(i.id, b)).length,
+           priced: b.items.filter(i => S(b.id).price.has(i.id)).length };
+}
 
+function buildTabs(){
+  $("#brTabs").innerHTML = BR.map(b => `
+    <button type="button" class="brt${b.id === cur.id ? " on" : ""}" role="tab" aria-selected="${b.id === cur.id}" data-b="${esc(b.id)}">
+      <strong>📍 ${esc(b.name)}</strong><small data-bsum="${esc(b.id)}"></small>
+    </button>`).join("");
+}
 function buildList(){
-  $("#chips").innerHTML = [["all", "الكل"], ...CATS.map(c => [c.id, `${c.emoji} ${c.title}`]), ["off", "⛔ غير المتوفر"], ["priced", "💰 أسعار معدّلة"]]
+  $("#chips").innerHTML = [["all", "الكل"], ...cur.cats.map(c => [c.id, `${c.emoji} ${c.title}`]),
+    ["off", "⛔ غير المتوفر"], ["priced", "💰 أسعار معدّلة"]]
     .map(([id, lbl]) => `<button class="chip${id === cat ? " on" : ""}" type="button" data-c="${esc(id)}">${esc(lbl)}</button>`).join("");
-  $("#list").innerHTML = CATS.map(c =>
+  $("#list").innerHTML = cur.cats.map(c =>
     `<div class="cat-h" data-cath="${esc(c.id)}">${esc(c.emoji + " " + c.title)}</div>` +
-    ITEMS.filter(i => i.cat === c.id).map(i => `
+    cur.items.filter(i => i.cat === c.id).map(i => `
       <div class="it" data-id="${esc(i.id)}" data-cat="${esc(i.cat)}" data-q="${esc(norm(i.name + " " + c.title + " " + i.id))}">
         <span class="th">${i.img ? `<img src="${esc(i.img)}" alt="" loading="lazy">` : esc(i.emoji)}</span>
         <div class="meta">
           <strong>${esc(i.name)}</strong>
-          ${i.brTxt ? `<small>${esc(i.brTxt)}</small>` : ""}
           <div class="line2"><span class="st"></span><span class="sv" aria-live="polite"></span></div>
           <div class="pr">
             <input type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" data-price aria-label="سعر ${esc(i.name)}">
@@ -396,33 +439,39 @@ function buildList(){
             <span class="orig hidden"></span>
           </div>
         </div>
-        <button class="sw" type="button" role="switch" aria-label="${esc(i.name)} متوفر"></button>
+        <button class="sw" type="button" role="switch" aria-label="${esc(i.name)} متوفر في ${esc(cur.name)}"></button>
       </div>`).join("")).join("") + `<div class="empty hidden" id="noRes">لا يوجد صنف مطابق</div>`;
-  built = true;
+}
+function selectBranch(id){
+  cur = BR.find(b => b.id === id) || BR[0];
+  try { localStorage.setItem("hws.adminBranch", cur.id); } catch (e) {}
+  if (!cur.cats.some(c => c.id === cat) && !["all", "off", "priced"].includes(cat)) cat = "all";
+  buildTabs(); buildList(); paint();
 }
 
 function paint(){
-  let off = 0;
+  if (!cur) return;
   document.querySelectorAll(".it").forEach(row => {
-    const on = isOn(row.dataset.id);
-    if (!on) off++;
+    const id = row.dataset.id, it = itemOf(id), on = isOn(id);
     row.classList.toggle("off", !on);
     row.querySelector(".sw").setAttribute("aria-checked", String(on));
     row.querySelector(".st").textContent = on ? "متوفر" : "غير متوفر";
     // السعر: لا نكتب فوق ما يكتبه صاحب المطعم الآن
-    const id = row.dataset.id, it = itemOf(id), inp = row.querySelector("[data-price]");
-    const changed = rprice.has(id);
+    const inp = row.querySelector("[data-price]"), changed = S(cur.id).price.has(id);
     if (document.activeElement !== inp){ inp.value = money(priceOf(id)); inp.classList.remove("bad"); }
     inp.classList.toggle("changed", changed);
     row.querySelector("[data-reset]").classList.toggle("hidden", !changed);
     const o = row.querySelector(".orig");
     o.classList.toggle("hidden", !changed);
-    o.textContent = changed ? `السعر الأصلي: ${it.baseTxt} ${CUR}` : "";
+    o.textContent = changed ? `السعر الأصلي: ${money(it.base)} ${CUR}` : "";
   });
-  const nPriced = ITEMS.filter(i => rprice.has(i.id)).length;
-  $("#sum").innerHTML = (off
-    ? `<b>${off}</b> صنف غير متوفر من أصل ${ITEMS.length}`
-    : `كل الأصناف متوفرة (${ITEMS.length})`) + (nPriced ? ` · <b>${nPriced}</b> سعر معدّل` : "");
+  BR.forEach(b => {
+    const { off, priced } = counts(b), el = document.querySelector(`[data-bsum="${CSS.escape(b.id)}"]`);
+    if (el) el.textContent = [off ? `${off} غير متوفر` : "الكل متوفر", priced ? `${priced} سعر معدّل` : ""].filter(Boolean).join(" · ");
+  });
+  const { off, priced } = counts(cur), n = cur.items.length;
+  $("#sum").innerHTML = `${esc(cur.name)}: ` + (off ? `<b>${off}</b> صنف غير متوفر من أصل ${n}` : `كل الأصناف متوفرة (${n})`)
+    + (priced ? ` · <b>${priced}</b> سعر معدّل` : "");
   applyFilter();
 }
 
@@ -431,8 +480,8 @@ function applyFilter(){
   let shown = 0;
   const visCats = new Set();
   document.querySelectorAll(".it").forEach(row => {
-    const ok = (cat === "all" || (cat === "off" ? !isOn(row.dataset.id)
-                : cat === "priced" ? rprice.has(row.dataset.id) : row.dataset.cat === cat))
+    const id = row.dataset.id;
+    const ok = (cat === "all" || (cat === "off" ? !isOn(id) : cat === "priced" ? S(cur.id).price.has(id) : row.dataset.cat === cat))
       && words.every(w => row.dataset.q.includes(w));
     row.classList.toggle("hidden", !ok);
     if (ok){ shown++; visCats.add(row.dataset.cat); }
@@ -441,30 +490,32 @@ function applyFilter(){
   $("#noRes").classList.toggle("hidden", !!shown);
 }
 
-function setStatus(id, s, txt){
+function setStatus(b, id, s, txt){
+  if (b !== cur.id) return;    // الحالة تخص فرعاً غير المعروض الآن
   const el = document.querySelector(`.it[data-id="${CSS.escape(id)}"] .sv`);
   if (el){ el.dataset.s = s; el.textContent = txt; }
 }
 
+/* حفظ في فرع واحد فقط (merge حتى لا يمسح التوفرُ السعرَ أو العكس) */
 async function save(id, fields, okMsg){
-  const n = (seq.get(id) || 0) + 1; seq.set(id, n);
-  setStatus(id, "busy", "جارٍ الحفظ…");
-  const slow = setTimeout(() => { if (seq.get(id) === n)
-    setStatus(id, "wait", "محفوظ على الجهاز — يُرسل عند عودة الإنترنت"); }, 4000);
+  const b = cur.id, bName = cur.name, key = b + "/" + id;
+  const n = (seq.get(key) || 0) + 1; seq.set(key, n);
+  setStatus(b, id, "busy", "جارٍ الحفظ…");
+  const slow = setTimeout(() => { if (seq.get(key) === n)
+    setStatus(b, id, "wait", "محفوظ على الجهاز — يُرسل عند عودة الإنترنت"); }, 4000);
   try {
-    await fs.setDoc(fs.doc(db, "items", id), { id, ...fields, updatedAt: fs.serverTimestamp() }, { merge: true });
+    await fs.setDoc(ref(b, id), { id, ...fields, updatedAt: fs.serverTimestamp() }, { merge: true });
     clearTimeout(slow);
-    if (seq.get(id) === n){ setStatus(id, "ok", okMsg); toast(okMsg, "ok"); }
+    if (seq.get(key) === n){ setStatus(b, id, "ok", okMsg); toast(`${okMsg} — ${bName}`, "ok"); }
   } catch (err) {
     clearTimeout(slow);
     console.error(err);
     const msg = err.code === "permission-denied"
       ? "لا يملك هذا الحساب صلاحية — تأكد من بريد الأدمن في قواعد الأمان"
       : "فشل الحفظ — حاول مرة أخرى";
-    if (seq.get(id) === n){ setStatus(id, "err", msg); toast(msg, "bad"); }
+    if (seq.get(key) === n){ setStatus(b, id, "err", msg); toast(msg, "bad"); }
   }
 }
-
 const toggle = id => save(id, { available: !isOn(id) }, "تم الحفظ ✓");
 
 function commitPrice(inp){
@@ -472,17 +523,20 @@ function commitPrice(inp){
   const v = parsePrice(inp.value);
   if (!(v > 0 && v <= 10000000)){
     inp.classList.add("bad");
-    setStatus(id, "err", "اكتب السعر بالأرقام فقط، مثال: 25000");
+    setStatus(cur.id, id, "err", "اكتب السعر بالأرقام فقط، مثال: 25000");
     return;
   }
   inp.classList.remove("bad");
   inp.value = money(v);
   if (v === priceOf(id)) return;                          // لم يتغيّر
-  if (v === it.base && it.prices.size === 1)              // رجع للسعر الأصلي ⇒ نحذف التعديل
-    save(id, { price: fs.deleteField() }, "تم حفظ السعر ✓");
+  if (v === it.base) save(id, { price: fs.deleteField() }, "تم حفظ السعر ✓");   // رجع للأصلي ⇒ نحذف التعديل
   else save(id, { price: v }, "تم حفظ السعر ✓");
 }
 
+$("#brTabs").addEventListener("click", e => {
+  const t = e.target.closest("[data-b]");
+  if (t && t.dataset.b !== cur.id){ selectBranch(t.dataset.b); toast("تعدّل الآن: " + cur.name); }
+});
 $("#list").addEventListener("click", e => {
   const sw = e.target.closest(".sw");
   if (sw) toggle(sw.closest(".it").dataset.id);
@@ -495,7 +549,7 @@ $("#list").addEventListener("focusin", e => {
 });
 $("#list").addEventListener("focusout", e => {
   const inp = e.target.closest("[data-price]");
-  if (inp) commitPrice(inp);
+  if (inp && inp.isConnected) commitPrice(inp);
 });
 $("#list").addEventListener("keydown", e => {
   const inp = e.target.closest("[data-price]");
@@ -511,48 +565,50 @@ $("#chips").addEventListener("click", e => {
 });
 $("#q").addEventListener("input", applyFilter);
 
-function setNet(fromCache){
+function setNet(){
   const n = $("#net");
-  const online = navigator.onLine && !fromCache;
+  const online = navigator.onLine && ![...cacheOf.values()].some(Boolean);
   n.className = "net " + (online ? "on" : "off");
   n.textContent = online ? "متصل — التغييرات تظهر للزبائن فوراً" : "غير متصل — تُعرض آخر حالة محفوظة";
 }
-let lastFromCache = false;
-addEventListener("online", () => setNet(lastFromCache));
-addEventListener("offline", () => setNet(true));
+addEventListener("online", setNet);
+addEventListener("offline", setNet);
 
 async function startPanel(user){
   $("#who").textContent = user.email || "";
   $("#signOut").classList.remove("hidden");
-  if (!built){
-    view("vLoading"); $("#loadingMsg").textContent = "جارٍ تحميل الأصناف…";
+  if (!BR.length){
+    loading("جارٍ تحميل الأصناف");
     try { await loadMenu(); }
     catch (e) {
       console.error(e);
       fail("تعذّر قراءة الأصناف", "يجب أن يكون <code>admin.html</code> بجانب <code>index.html</code> على نفس الموقع، وأن تفتحه من رابط الموقع (وليس كملف من الجهاز).");
       return;
     }
-    buildList();
+    let saved = null; try { saved = localStorage.getItem("hws.adminBranch"); } catch (e) {}
+    selectBranch(saved);
   }
   view("vPanel"); paint();
-  if (unsub) unsub();
-  unsub = fs.onSnapshot(fs.collection(db, "items"), { includeMetadataChanges: true }, snap => {
-    avail.clear(); rprice.clear();
-    snap.docs.forEach(d => { const x = d.data();
-      if (x.available === false) avail.set(d.id, false);
-      if (typeof x.price === "number") rprice.set(d.id, x.price); });
-    lastFromCache = snap.metadata.fromCache; setNet(lastFromCache);
-    paint();
-  }, err => {
-    console.error(err);
-    toast("تعذّر قراءة الحالة من Firebase", "bad");
-  });
+  unsubs.forEach(u => u()); unsubs = [];
+  for (const b of BR) {
+    unsubs.push(fs.onSnapshot(fs.collection(db, "branches", b.id, "items"), { includeMetadataChanges: true }, snap => {
+      const st = S(b.id); st.avail.clear(); st.price.clear();
+      snap.docs.forEach(d => { const x = d.data();
+        if (x.available === false) st.avail.set(d.id, false);
+        if (typeof x.price === "number") st.price.set(d.id, x.price); });
+      cacheOf.set(b.id, snap.metadata.fromCache); setNet();
+      paint();
+    }, err => {
+      console.error(err);
+      toast("تعذّر قراءة الحالة من Firebase", "bad");
+    }));
+  }
 }
 
 authM.onAuthStateChanged(auth, user => {
   if (user) startPanel(user);
   else {
-    if (unsub){ unsub(); unsub = null; }
+    unsubs.forEach(u => u()); unsubs = [];
     $("#signOut").classList.add("hidden");
     view("vLogin");
   }

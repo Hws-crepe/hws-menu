@@ -27,7 +27,16 @@ service cloud.firestore {
           && d.updatedAt == request.time;
     }
 
-    // حالة توفر الأصناف وأسعارها: القراءة للجميع، الكتابة للأدمن فقط
+    // توفر الأصناف وأسعارها لكل فرع: القراءة للجميع، الكتابة للأدمن فقط
+    match /branches/{branchId}/items/{itemId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+                            && branchId.matches('^[a-z0-9_-]{1,40}$')
+                            && validItem(itemId);
+      allow delete: if isAdmin();
+    }
+
+    // المسار القديم (قبل فصل الفروع) — يبقى مؤقتاً حتى رفع النسخة الجديدة، ثم يمكن حذفه
     match /items/{itemId} {
       allow read: if true;
       allow create, update: if isAdmin() && validItem(itemId);
