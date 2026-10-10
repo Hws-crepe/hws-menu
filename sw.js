@@ -1,7 +1,7 @@
 /* HWS CREPE — Service Worker
    يخزّن المنيو محلياً فتفتح الزيارات التالية فوراً حتى دون إنترنت.
    عند نشر نسخة جديدة، غيّر رقم CACHE ليحدّث جميع الأجهزة. */
-const CACHE = "hws-v3";
+const CACHE = "hws-v4";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {

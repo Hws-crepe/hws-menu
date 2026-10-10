@@ -88,7 +88,6 @@ input,select,textarea{font-family:inherit;font-size:1rem;color:inherit}
   backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.18);color:#fff}
 .chip.open{background:rgba(37,163,90,.92);border-color:transparent}
 .chip.closed{background:rgba(90,96,104,.94);border-color:transparent}
-.chip.paused{background:rgba(217,83,79,.94);border-color:transparent}
 .chip.branch{background:var(--amber);color:#3a2a00;border-color:transparent}
 .chip.branch:hover{background:#e39c33}
 .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:0 0 7px}
@@ -385,31 +384,6 @@ html[data-theme="dark"] .optgrp .oh em.req{background:#3a2222}
 .branch-btn .bb-go svg{width:17px;height:17px}
 html[dir="ltr"] .branch-btn .bb-go svg{transform:scaleX(-1)}
 
-/* لوحة الإدارة */
-.adm-tabs{display:flex;gap:6px;padding:12px 18px 0}
-.adm-tabs button{flex:1;padding:9px;border-radius:12px;font-weight:800;font-size:.82rem;background:var(--chipbg);color:var(--ink-2)}
-.adm-tabs button.on{background:var(--red);color:#fff}
-.adm-sec{padding:14px 18px}
-.adm-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
-.adm-item:last-child{border-bottom:none}
-.adm-item .ai-n{flex:1;min-width:0;font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.adm-item input[type=number]{width:96px;padding:7px 9px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:.83rem;font-weight:800}
-.adm-item input.changed{border-color:var(--amber);background:rgba(240,173,78,.1)}
-.sw{position:relative;width:46px;height:26px;flex:0 0 46px;border-radius:20px;background:var(--line);transition:background .2s}
-.sw.on{background:var(--green)}
-.sw::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
-.sw.on::after{transform:translateX(-20px)}
-html[dir="ltr"] .sw.on::after{transform:translateX(20px)}
-.adm-note{background:rgba(240,173,78,.12);border:1px solid rgba(240,173,78,.4);border-radius:14px;padding:12px 14px;font-size:.79rem;margin-bottom:14px;color:var(--ink-2)}
-.adm-msg{padding:0 0 11px}
-.adm-msg input{width:100%;padding:8px 11px;border:1.5px solid rgba(240,173,78,.55);border-radius:10px;
-  background:rgba(240,173,78,.08);font-size:.8rem;font-weight:600;font-family:inherit;color:var(--ink)}
-.adm-msg input::placeholder{color:var(--ink-3);font-weight:400}
-.adm-item+.adm-msg{border-bottom:1px solid var(--line);margin-top:-1px;padding-top:2px}
-.adm-cat{font-size:.76rem;font-weight:900;color:var(--ink-3);margin:14px 0 4px;letter-spacing:.4px}
-textarea.code{width:100%;min-height:110px;padding:12px;border:1.5px solid var(--line);border-radius:14px;
-  background:#12151a;color:#c6f6d5;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;
-  direction:ltr;text-align:left;white-space:pre;overflow-x:auto}
 
 .toast{position:fixed;bottom:calc(var(--bar-h) + 18px);left:0;right:0;width:fit-content;margin-inline:auto;
   background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:40px;font-size:.87rem;font-weight:700;
@@ -714,38 +688,6 @@ html[data-theme="dark"] .toast{background:#2c333b;color:#fff}
   </div>
 </div>
 
-<!-- ===== لوحة الإدارة ===== -->
-<div class="overlay" id="admOverlay" inert role="dialog" aria-modal="true" aria-labelledby="admTitle">
-  <div class="sheet wide">
-    <div class="sheet-head">
-      <h3 id="admTitle"></h3>
-      <button class="x" type="button" data-close="admOverlay" aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div id="admLogin" class="adm-sec">
-      <div class="field">
-        <label for="admPin" id="admPinLbl"></label>
-        <input id="admPin" type="password" inputmode="numeric" maxlength="12" autocomplete="off">
-        <div class="err-msg" id="admPinErr"></div>
-      </div>
-      <button class="btn btn-red" id="admGo" type="button"><span id="admGoLbl"></span></button>
-    </div>
-    <div id="admPanel" class="hidden" style="display:flex;flex-direction:column;min-height:0;flex:1">
-      <div class="adm-tabs">
-        <button type="button" data-atab="items" class="on" id="atI"></button>
-        <button type="button" data-atab="branch" id="atB"></button>
-        <button type="button" data-atab="save" id="atS"></button>
-      </div>
-      <div class="sheet-scroll" style="flex:1">
-        <div class="adm-sec" id="admItems"></div>
-        <div class="adm-sec hidden" id="admBranch"></div>
-        <div class="adm-sec hidden" id="admSave"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast" role="status" aria-live="polite">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M20 6 9 17l-5-5"/></svg>
   <span id="toastMsg"></span>
@@ -832,7 +774,6 @@ const T = {
   openLbl:   ["مفتوح","Open"],
   closedLbl: ["مغلق","Closed"],
   paused:    ["مزدحمون — الطلبات متوقفة مؤقتاً","Busy — orders paused"],
-  pausedShort:["متوقف مؤقتاً","Paused"],
   soldOut:   ["نفد اليوم","Sold out"],
   cartEmpty: ["سلتك فارغة","Your cart is empty"],
   upsellT:   ["تضيف مشروباً أو إضافة؟","Add a drink or extra?"],
@@ -848,31 +789,8 @@ const T = {
   installS:  ["يفتح فوراً حتى بدون إنترنت","Opens instantly, even offline"],
   installGo: ["تثبيت","Install"],
   devBy:     ["تطوير Shasha Tech Solutions","Built by Shasha Tech Solutions"],
-  admin:     ["لوحة الإدارة","Admin panel"],
-  pin:       ["الرمز السري","PIN code"],
-  pinErr:    ["الرمز غير صحيح","Wrong PIN"],
-  enter:     ["دخول","Enter"],
-  tabItems:  ["الأصناف","Items"],
-  tabBranch: ["الفرع","Branch"],
-  tabSave:   ["حفظ ونشر","Save & publish"],
-  admNote:   ["تعديلاتك تُحفظ في هذا الجهاز فوراً. لتصل لكل الزبائن، افتح «حفظ ونشر».",
-              "Changes save on this device instantly. Use “Save & publish” to apply for everyone."],
   available: ["متوفر","Available"],
   soldOutMsg:["هذا الصنف غير متوفر حالياً","This item is currently unavailable"],
-  outMsgPH:  ["نص يظهر للزبون (اختياري) — مثال: سيتوفر قريباً","Message shown to customers (optional)"],
-  pauseBr:   ["إيقاف الطلبات مؤقتاً","Pause orders"],
-  pauseBrS:  ["يظهر للزبون أن الفرع مزدحم ولا يمكنه الطلب","Customers see the branch is busy and can't order"],
-  resetAdm:  ["إلغاء كل التعديلات","Reset all changes"],
-  resetAsk:  ["إلغاء كل تعديلاتك والعودة للأسعار الأصلية؟","Reset all your changes back to original?"],
-  savedAdm:  ["تم الحفظ","Saved"],
-  publishT:  ["لنشر التعديلات لكل الزبائن","To publish for all customers"],
-  publishS:  ["نزّل الملف المحدَّث وارفعه مكان الملف الحالي على الاستضافة.",
-              "Download the updated file and upload it over the current one."],
-  download:  ["تنزيل الملف المحدَّث","Download updated file"],
-  copyCode:  ["نسخ الكود","Copy code"],
-  copyHint:  ["إن تعذّر التنزيل، انسخ هذا الكود والصقه في الملف مكان السطر الذي يبدأ بـ OVERRIDES.",
-              "If download fails, copy this code into the file replacing the OVERRIDES line."],
-  noChanges: ["لا توجد تعديلات بعد","No changes yet"],
   installIOS:["اضغط زر المشاركة ⬆️ ثم «إضافة إلى الشاشة الرئيسية»","Tap Share ⬆️ then “Add to Home Screen”"],
   installNow:["تثبيت التطبيق","Install app"],
   installMenu:["من قائمة المتصفح ⋮ اختر «تثبيت التطبيق»","Open the browser menu ⋮ and choose “Install app”"],
@@ -898,7 +816,6 @@ const CONFIG = {
   currency: ["ج.س","SDG"],
   logo: "LOGO",
   cover: "COVER",
-  adminPin: "1990",                 // ⚠️ غيّره
   upsellFrom: ["drinks","addons"],  // الأقسام المقترحة عند الدفع
   social: {
     facebook: "https://www.facebook.com/hwscafetria",
@@ -1054,10 +971,6 @@ const BRANCHES = [
     hours:HOURS_DEFAULT, zones:ZONES_DEFAULT, delivery:true, menu:MENU_WADI }
 ];
 
-/* ============================================================================
-   ٤ — تعديلات الإدارة المنشورة  (لا تعدّل هذا السطر يدوياً)
-   ============================================================================ */
-const OVERRIDES = {};
 </script>
 <script>
 /* ============================================================================
@@ -1070,7 +983,7 @@ const $  = (s,r) => (r||document).querySelector(s);
 const $$ = (s,r) => Array.from((r||document).querySelectorAll(s));
 const K = { branch:"hws.branch", cart:"hws.cart.", info:"hws.customer",
             lang:"hws.lang", theme:"hws.theme", last:"hws.lastorder.",
-            adm:"hws.admin", admOk:"hws.adminok", inst:"hws.installdismiss" };
+            inst:"hws.installdismiss" };
 
 const store = {
   get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
@@ -1083,9 +996,6 @@ let L = 0;                       // 0=عربي 1=إنجليزي
 let branch = null, cart = [], orderMode = "delivery";
 let pCur = null, pQty = 1, pSel = {};
 let filter = "all", io = null, lastFocus = null, deferredPrompt = null;
-let adm = store.get(K.adm) || { prices:{}, out:{}, paused:{}, msg:{} };
-adm.prices = adm.prices || {}; adm.out = adm.out || {};
-adm.paused = adm.paused || {}; adm.msg = adm.msg || {};
 
 /* ---------- أدوات ---------- */
 const t   = k => (T[k] ? T[k][L] : k);
@@ -1154,8 +1064,7 @@ function applyLang(){
     "#eAddr":"addrErr","#hAddr":"addrHint","#coSendLbl":"sendWa","#bsLead":"pickBr",
     "#bsCancel":"cancel","#usTitle":"upsellT","#roTitle":"reorderT","#roGo":"reorderGo",
     "#pShareLbl":"share","#inT":"installT","#inS":"installS","#inGo":"installGo","#pAddLabel":"addCart",
-    "#footDev":"devBy","#admTitle":"admin","#admPinLbl":"pin","#admPinErr":"pinErr",
-    "#admGoLbl":"enter","#atI":"tabItems","#atB":"tabBranch","#atS":"tabSave"
+    "#footDev":"devBy"
   };
   Object.entries(S).forEach(([sel,key]) => { const e=$(sel); if(e) e.textContent = t(key); });
   $("#q").placeholder = t("searchPh");
@@ -1207,15 +1116,11 @@ function fmt12(hhmm){
   h = h%12 || 12;
   return `${h}:${String(m).padStart(2,"0")} ${ap}`;
 }
-function isPaused(b){ return !!adm.paused[b.id]; }
-function canOrder(){ return branch && !isPaused(branch); }
+function canOrder(){ return !!branch; }
 
 function renderOpenState(){
   const chip = $("#openChip"), txt = $("#openText");
   chip.className = "chip";
-  if (isPaused(branch)){
-    chip.classList.add("paused"); txt.textContent = t("paused"); return;
-  }
   const inf = openInfo(branch);
   chip.classList.add(inf.open ? "open" : "closed");
   if (inf.open){ txt.textContent = `${t("openNow")} ${fmt12(inf.close)}`; return; }
@@ -1225,33 +1130,26 @@ function renderOpenState(){
     : `${t("closedLbl")} · ${t("opensOn")} ${tx(T.days[inf.day])} ${fmt12(inf.at)}`;
 }
 
-/* ---------- تعديلات الإدارة ---------- */
+/* ---------- الأسعار والتوفر (من Firestore فقط) ---------- */
 function effPrice(it){
-  const r = remotePrice[it.id];               // سعر حدّده صاحب المطعم من صفحة الإدارة (Firestore)
-  if (typeof r === "number" && r >= 0) return r;
-  const p = adm.prices[it.id];
-  return (p === undefined || p === null || p === "") ? it.price : Number(p);
+  const r = remotePrice[it.id];               // سعر حدّده صاحب المطعم من صفحة الإدارة
+  return (typeof r === "number" && r >= 0) ? r : it.price;
 }
-/* remoteOff: أصناف جعلها صاحب المطعم «غير متوفرة» من صفحة الإدارة (Firestore).
-   تبقى فارغة إذا تعذّر الاتصال بـ Firebase ⇒ كل الأصناف متوفرة. */
+/* remoteOff: أصناف غير متوفرة حسب Firestore. تبقى فارغة إذا تعذّر الاتصال ⇒ كل الأصناف متوفرة */
 let remoteOff = new Set();
-let remotePrice = {};   // id → سعر من Firestore (إن وُجد يتقدّم على سعر الكود)
-let remoteFor = null;   // الفرع الذي تخصّه remoteOff/remotePrice — لكل فرع توفره وأسعاره
-function isOut(it){ return !!adm.out[it.id] || remoteOff.has(it.id); }
-function isSoon(it){ return remoteOff.has(it.id) && !adm.out[it.id]; }
-/* نص قصير يكتبه المدير يظهر مكان سبب عدم التوفر */
-function outMsg(it){ return String(adm.msg[it.id] || "").trim(); }
-function saveAdm(){ store.set(K.adm, adm); }
+let remotePrice = {};   // id → سعر من Firestore
+let remoteFor = null;   // الفرع الذي تخصّه remoteOff/remotePrice
+function isOut(it){ return remoteOff.has(it.id); }
+function isSoon(it){ return remoteOff.has(it.id); }
+function outMsg(){ return ""; }
 
 /* ---------- الفروع ---------- */
 function buildBranchPicker(){
   const last = store.get(K.branch);
   $("#bsLogo").src = imgSrc(CONFIG.logo);
   $("#branchList").innerHTML = BRANCHES.map(b => {
-    const open = isPaused(b) ? null : isOpen(b);
-    const state = isPaused(b)
-      ? `<span class="bb-state">${esc(t("pausedShort"))}</span>`
-      : `<span class="bb-state${open?" open":""}">${esc(open?t("openLbl"):t("closedLbl"))}</span>`;
+    const open = isOpen(b);
+    const state = `<span class="bb-state${open?" open":""}">${esc(open?t("openLbl"):t("closedLbl"))}</span>`;
     return `
     <button class="branch-btn${b.id===last?" last":""}" type="button" data-branch="${esc(b.id)}">
       <span class="bb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
@@ -1870,131 +1768,6 @@ window.__setAvailability = function(offIds, prices, branchId){
   else if (repriced.length && !first) toast(`${t("priceUpd")} ${repriced.join("، ")}`, 5000);
 };
 
-/* ---------- لوحة الإدارة ---------- */
-function openAdmin(){
-  const ok = store.get(K.admOk);
-  $("#admLogin").classList.toggle("hidden", !!ok);
-  $("#admPanel").classList.toggle("hidden", !ok);
-  $("#admPin").value = ""; $("#admPin").parentNode.classList.remove("bad");
-  if (ok) renderAdmin();
-  openOverlay("admOverlay");
-}
-$("#admGo").addEventListener("click", () => {
-  if ($("#admPin").value === CONFIG.adminPin){
-    store.set(K.admOk, 1);
-    $("#admLogin").classList.add("hidden"); $("#admPanel").classList.remove("hidden");
-    renderAdmin();
-  } else $("#admPin").parentNode.classList.add("bad");
-});
-$("#admPin").addEventListener("keydown", e => { if(e.key==="Enter") $("#admGo").click(); });
-$$('.adm-tabs [data-atab]').forEach(b => b.addEventListener("click", () => {
-  $$('.adm-tabs [data-atab]').forEach(x=>x.classList.toggle("on", x===b));
-  $("#admItems").classList.toggle("hidden", b.dataset.atab!=="items");
-  $("#admBranch").classList.toggle("hidden", b.dataset.atab!=="branch");
-  $("#admSave").classList.toggle("hidden", b.dataset.atab!=="save");
-  if (b.dataset.atab==="save") renderAdmSave();
-}));
-
-function renderAdmin(){
-  $("#admItems").innerHTML = `<div class="adm-note">${esc(t("admNote"))}</div>` +
-    branch.menu.map(c => `<div class="adm-cat">${esc(tx(c.title))}</div>` +
-      c.items.map(i => `
-      <div class="adm-item">
-        <span class="ai-n">${esc(tx(i.name))}</span>
-        <input type="number" min="0" step="500" data-price="${esc(i.id)}"
-               value="${effPrice(i)}" class="${adm.prices[i.id]!==undefined?"changed":""}">
-        <span class="sw${isOut(i)?"":" on"}" role="button" tabindex="0"
-              data-out="${esc(i.id)}" aria-label="${esc(t("available"))}"></span>
-      </div>
-      <div class="adm-msg${isOut(i)?"":" hidden"}" data-msgrow="${esc(i.id)}">
-        <input type="text" maxlength="90" data-msg="${esc(i.id)}"
-               value="${esc(adm.msg[i.id]||"")}" placeholder="${esc(t("outMsgPH"))}">
-      </div>`).join("")).join("");
-  $$('#admItems [data-msg]').forEach(inp => inp.addEventListener("change", () => {
-    const id = inp.dataset.msg, v = inp.value.trim();
-    if (v) adm.msg[id] = v; else delete adm.msg[id];
-    saveAdm(); renderMenu($("#q").value.trim()); toast(t("savedAdm"));
-  }));
-  $$('#admItems [data-price]').forEach(inp => inp.addEventListener("change", () => {
-    const v = inp.value.trim();
-    const it = findAny(inp.dataset.price);
-    if (v==="" || Number(v)===it.item.price) delete adm.prices[inp.dataset.price];
-    else adm.prices[inp.dataset.price] = Number(v);
-    inp.classList.toggle("changed", adm.prices[inp.dataset.price]!==undefined);
-    saveAdm(); renderMenu($("#q").value.trim()); renderCartBar(); toast(t("savedAdm"));
-  }));
-  const tog = el => {
-    const id = el.dataset.out;
-    if (adm.out[id]) delete adm.out[id]; else adm.out[id] = 1;
-    el.classList.toggle("on", !adm.out[id]);
-    const row = $(`#admItems [data-msgrow="${CSS.escape(id)}"]`);
-    if (row) row.classList.toggle("hidden", !adm.out[id]);
-    saveAdm(); renderMenu($("#q").value.trim()); toast(t("savedAdm"));
-  };
-  $$('#admItems [data-out]').forEach(el => {
-    el.addEventListener("click", ()=>tog(el));
-    el.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();tog(el);} });
-  });
-
-  $("#admBranch").innerHTML = `
-    <div class="adm-item" style="padding:14px 0">
-      <span class="ai-n" style="white-space:normal">
-        <strong>${esc(t("pauseBr"))}</strong><br>
-        <small style="color:var(--ink-3);font-weight:400">${esc(t("pauseBrS"))}</small>
-      </span>
-      <span class="sw${isPaused(branch)?" on":""}" id="admPause" role="button" tabindex="0"></span>
-    </div>
-    <button class="btn btn-ghost" id="admReset" type="button" style="margin-top:14px">${esc(t("resetAdm"))}</button>`;
-  const tp = () => {
-    if (adm.paused[branch.id]) delete adm.paused[branch.id]; else adm.paused[branch.id] = 1;
-    $("#admPause").classList.toggle("on", isPaused(branch));
-    saveAdm(); renderOpenState(); toast(t("savedAdm"));
-  };
-  $("#admPause").addEventListener("click", tp);
-  $("#admPause").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();tp();} });
-  $("#admReset").addEventListener("click", () => {
-    if (!confirm(t("resetAsk"))) return;
-    adm = { prices:{}, out:{}, paused:{}, msg:{} }; saveAdm();
-    renderAdmin(); renderMenu($("#q").value.trim()); renderOpenState(); renderCartBar();
-  });
-}
-
-function admPayload(){
-  return { prices:adm.prices, out:adm.out, paused:adm.paused, msg:adm.msg };
-}
-function renderAdmSave(){
-  const p = admPayload();
-  const empty = !Object.keys(p.prices).length && !Object.keys(p.out).length
-    && !Object.keys(p.paused).length && !Object.keys(p.msg||{}).length;
-  const code = "const OVERRIDES = " + JSON.stringify(p) + ";";
-  $("#admSave").innerHTML = `
-    <div class="adm-note"><strong>${esc(t("publishT"))}</strong><br>${esc(t("publishS"))}</div>
-    ${empty?`<p style="color:var(--ink-3);font-size:.85rem">${esc(t("noChanges"))}</p>`:""}
-    <button class="btn btn-red" id="admDl" type="button" ${empty?"disabled":""}>${esc(t("download"))}</button>
-    <p class="hint" style="margin:14px 0 8px">${esc(t("copyHint"))}</p>
-    <textarea class="code" id="admCode" readonly>${esc(code)}</textarea>
-    <button class="btn btn-ghost" id="admCopy" type="button" style="margin-top:10px" ${empty?"disabled":""}>${esc(t("copyCode"))}</button>`;
-  $("#admCopy").addEventListener("click", async () => {
-    const ta = $("#admCode");
-    try { await navigator.clipboard.writeText(ta.value); }
-    catch(e){ ta.removeAttribute("readonly"); ta.select(); document.execCommand("copy"); ta.setAttribute("readonly",""); }
-    toast(t("copied"));
-  });
-  $("#admDl").addEventListener("click", async () => {
-    try {
-      const res = await fetch(location.href, {cache:"no-store"});
-      let html = await res.text();
-      const re = /const OVERRIDES = .*?;/;
-      if (!re.test(html)) throw new Error("marker");
-      html = html.replace(re, code);
-      const url = URL.createObjectURL(new Blob([html], {type:"text/html"}));
-      const a = document.createElement("a");
-      a.href = url; a.download = "index.html"; a.click();
-      setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    } catch(e){ toast(t("copyHint")); }
-  });
-}
-
 /* ---------- بيانات جوجل المنظّمة ---------- */
 function buildLd(){
   const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -2096,11 +1869,7 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 /* ---------- الإقلاع ---------- */
 function boot(){
   L = store.get(K.lang) === 1 ? 1 : 0;
-  if (OVERRIDES && (OVERRIDES.prices || OVERRIDES.out || OVERRIDES.paused || OVERRIDES.msg)){
-    const local = store.get(K.adm);
-    if (!local) adm = { prices:OVERRIDES.prices||{}, out:OVERRIDES.out||{},
-                        paused:OVERRIDES.paused||{}, msg:OVERRIDES.msg||{} };
-  }
+  store.del("hws.admin"); store.del("hws.adminok");   // تنظيف بقايا لوحة الـPIN القديمة
   applyTheme(); applyLang();
   const saved = store.get(K.branch);
   branch = BRANCHES.find(b=>b.id===saved) || BRANCHES[0];
@@ -2112,15 +1881,7 @@ function boot(){
   setInterval(renderOpenState, 60000);
   const bar = $("#catsBar");
   addEventListener("scroll", ()=>bar.classList.toggle("stuck", bar.getBoundingClientRect().top<=0), {passive:true});
-  // فتح لوحة الإدارة: ضغطة مطوّلة على الشعار
-  let hold;
-  const lg = $("#brandLogo");
-  const start = ()=>{ hold = setTimeout(openAdmin, 1200); };
-  const stop  = ()=>clearTimeout(hold);
-  ["mousedown","touchstart"].forEach(e=>lg.addEventListener(e,start,{passive:true}));
-  ["mouseup","mouseleave","touchend","touchcancel"].forEach(e=>lg.addEventListener(e,stop,{passive:true}));
   setupInstallUI();
-  if (location.hash.includes("admin")) openAdmin();
 }
 boot();
 
